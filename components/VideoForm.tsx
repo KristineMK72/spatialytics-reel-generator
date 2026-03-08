@@ -587,450 +587,350 @@ async function downloadGIF() {
   try {
     setIsRecording(true);
 
-    const canvas = document.createElement("canvas");
-    canvas.width = VIDEO_WIDTH;
-    canvas.height = VIDEO_HEIGHT;
+    const [backgroundImg, promoImg, logoImg] = await Promise.all([
+      loadImage(background),
+      loadImage(promoImage),
+      loadImage(logo),
+    ]);
 
-    const ctx = canvas.getContext("2d");
+    const assets: LoadedAssets = { backgroundImg, promoImg, logoImg };
+
+    const gifWidth = 540;
+    const gifHeight = 960;
+    const frameCount = 14;
+
+    const renderCanvas = document.createElement("canvas");
+    renderCanvas.width = gifWidth;
+    renderCanvas.height = gifHeight;
+
+    const ctx = renderCanvas.getContext("2d");
     if (!ctx) {
-      alert("Canvas not supported.");
-      return;
+      throw new Error("Canvas context could not be created.");
     }
 
-    ctx.fillStyle = "#07111f";
-    ctx.fillRect(0, 0, VIDEO_WIDTH, VIDEO_HEIGHT);
+    const stars = buildStars(spaceMode ? 180 : 0);
+    const frames: string[] = [];
 
-    ctx.fillStyle = "#ffffff";
-    ctx.font = "bold 60px Arial";
-    ctx.fillText("SPATIALYTICS", 120, 300);
+    const scaleX = gifWidth / VIDEO_WIDTH;
+    const scaleY = gifHeight / VIDEO_HEIGHT;
 
-    ctx.font = "40px Arial";
-    ctx.fillText("Website + GIS Solutions", 120, 380);
+    for (let i = 0; i < frameCount; i++) {
+      const elapsed =
+        (VIDEO_DURATION_MS / Math.max(frameCount - 1, 1)) * i;
 
-    const url = canvas.toDataURL("image/png");
+      ctx.clearRect(0, 0, gifWidth, gifHeight);
 
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "spatialytics-preview.png";
-    a.click();
+      ctx.save();
+      ctx.setTransform(scaleX, 0, 0, scaleY, 0, 0);
+      drawFrame(ctx, assets, stars, elapsed, VIDEO_DURATION_MS);
+      ctx.restore();
 
+      frames.push(renderCanvas.toDataURL("image/png"));
+    }
+
+    await new Promise<void>((resolve, reject) => {
+      gifshot.createGIF(
+        {
+          images: frames,
+          gifWidth,
+          gifHeight,
+          interval: VIDEO_DURATION_MS / frameCount / 1000,
+        },
+        (obj: { error?: boolean; image?: string }) => {
+          if (obj.error || !obj.image) {
+            reject(new Error("Could not create GIF."));
+            return;
+          }
+
+          const a = document.createElement("a");
+          a.href = obj.image;
+          a.download = "spatialytics-reel.gif";
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+
+          resolve();
+        }
+      );
+    });
   } catch (error) {
-    console.error("GIF fallback failed:", error);
+    console.error("GIF render failed:", error);
+    alert("Could not create the GIF.");
   } finally {
     setIsRecording(false);
   }
 }
-  return (
-    <div className="grid gap-8 md:grid-cols-2">
-      <div className="space-y-6">
-        <div>
-          <label className="font-semibold text-white">Template</label>
-          <select
-            className="mt-2 w-full rounded-2xl border border-white/10 bg-white/5 p-3 text-white outline-none"
-            value={template}
-            onChange={(e) => applyTemplate(e.target.value as Template)}
-          >
-            <option value="website" className="text-black">
-              Website Promo
-            </option>
-            <option value="gis" className="text-black">
-              GIS Project
-            </option>
-            <option value="dashboard" className="text-black">
-              Data Dashboard
-            </option>
-          </select>
-        </div>
 
-        <div className="flex items-center gap-3 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-3 text-white">
-          <input
-            id="space-mode"
-            type="checkbox"
-            checked={spaceMode}
-            onChange={(e) => setSpaceMode(e.target.checked)}
-            className="h-4 w-4"
-          />
-          <label htmlFor="space-mode" className="font-medium">
-            Space fly-through mode
-          </label>
-        </div>
-
-        <div>
-          <label className="font-semibold text-white">Headline</label>
-          <input
-            className="mt-2 w-full rounded-2xl border border-white/10 bg-white/5 p-3 text-white outline-none"
-            value={headline}
-            onChange={(e) => setHeadline(e.target.value)}
-          />
-        </div>
-
-        <div>
-          <label className="font-semibold text-white">Subtext</label>
-          <input
-            className="mt-2 w-full rounded-2xl border border-white/10 bg-white/5 p-3 text-white outline-none"
-            value={subtext}
-            onChange={(e) => setSubtext(e.target.value)}
-          />
-        </div>
-
-        <div>
-          <label className="font-semibold text-white">Bullet Items</label>
-          <div className="mt-2 space-y-2">
-            {items.map((item, i) => (
-              <input
-                key={i}
-                className="w-full rounded-2xl border border-white/10 bg-white/5 p-3 text-white outline-none"
-                value={item}
-                onChange={(e) => {
-                  const next = [...items];
-                  next[i] = e.target.value;
-                  setItems(next);
-                }}
-              />
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <label className="font-semibold text-white">Upload Logo</label>
-          <input
-            type="file"
-            accept="image/*"
-            className="mt-2 block w-full rounded-2xl border border-white/10 bg-white/5 p-3 text-white"
-            onChange={(e) => handleImageUpload(e, setLogo)}
-          />
-        </div>
-
-        <div>
-          <label className="font-semibold text-white">Upload Background</label>
-          <input
-            type="file"
-            accept="image/*"
-            className="mt-2 block w-full rounded-2xl border border-white/10 bg-white/5 p-3 text-white"
-            onChange={(e) => handleImageUpload(e, setBackground)}
-          />
-        </div>
-
-        <div>
-          <label className="font-semibold text-white">Upload Promo Image</label>
-          <input
-            type="file"
-            accept="image/*"
-            className="mt-2 block w-full rounded-2xl border border-white/10 bg-white/5 p-3 text-white"
-            onChange={(e) => handleImageUpload(e, setPromoImage)}
-          />
-        </div>
-
-        <div className="flex flex-wrap gap-3">
-          <button
-            className="rounded-2xl bg-gradient-to-r from-cyan-400 to-indigo-500 px-5 py-3 font-semibold text-slate-950"
-            onClick={generateCaption}
-            type="button"
-          >
-            Generate Caption
-          </button>
-
-          <button
-            className="rounded-2xl bg-white px-5 py-3 font-semibold text-slate-950"
-            onClick={copyCaption}
-            type="button"
-          >
-            Copy Caption
-          </button>
-
-          <button
-            className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-5 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-            onClick={downloadPreview}
-            disabled={isDownloading}
-            type="button"
-          >
-            {isDownloading ? "Downloading..." : "Download Preview PNG"}
-          </button>
-
-          <button
-            className="rounded-2xl border border-indigo-300/20 bg-indigo-400/20 px-5 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-            onClick={() => {
-  if (typeof MediaRecorder !== "undefined") {
-    downloadReelWebM();
-  } else {
-    downloadGIF();
-  }
-}
-            disabled={isRecording}
-            type="button"
-          >
-            {isRecording ? "Recording Reel..." : "Download Reel WebM"}
-          </button>
-        </div>
-<
-  return (
-    <div className="grid gap-8 md:grid-cols-2">
-      <div className="space-y-6">
-        <div>
-          <label className="font-semibold text-white">Template</label>
-          <select
-            className="mt-2 w-full rounded-2xl border border-white/10 bg-white/5 p-3 text-white outline-none"
-            value={template}
-            onChange={(e) => applyTemplate(e.target.value as Template)}
-          >
-            <option value="website" className="text-black">
-              Website Promo
-            </option>
-            <option value="gis" className="text-black">
-              GIS Project
-            </option>
-            <option value="dashboard" className="text-black">
-              Data Dashboard
-            </option>
-          </select>
-        </div>
-
-        <div className="flex items-center gap-3 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-3 text-white">
-          <input
-            id="space-mode"
-            type="checkbox"
-            checked={spaceMode}
-            onChange={(e) => setSpaceMode(e.target.checked)}
-            className="h-4 w-4"
-          />
-          <label htmlFor="space-mode" className="font-medium">
-            Space fly-through mode
-          </label>
-        </div>
-
-        <div>
-          <label className="font-semibold text-white">Headline</label>
-          <input
-            className="mt-2 w-full rounded-2xl border border-white/10 bg-white/5 p-3 text-white outline-none"
-            value={headline}
-            onChange={(e) => setHeadline(e.target.value)}
-          />
-        </div>
-
-        <div>
-          <label className="font-semibold text-white">Subtext</label>
-          <input
-            className="mt-2 w-full rounded-2xl border border-white/10 bg-white/5 p-3 text-white outline-none"
-            value={subtext}
-            onChange={(e) => setSubtext(e.target.value)}
-          />
-        </div>
-
-        <div>
-          <label className="font-semibold text-white">Bullet Items</label>
-          <div className="mt-2 space-y-2">
-            {items.map((item, i) => (
-              <input
-                key={i}
-                className="w-full rounded-2xl border border-white/10 bg-white/5 p-3 text-white outline-none"
-                value={item}
-                onChange={(e) => {
-                  const next = [...items];
-                  next[i] = e.target.value;
-                  setItems(next);
-                }}
-              />
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <label className="font-semibold text-white">Upload Logo</label>
-          <input
-            type="file"
-            accept="image/*"
-            className="mt-2 block w-full rounded-2xl border border-white/10 bg-white/5 p-3 text-white"
-            onChange={(e) => handleImageUpload(e, setLogo)}
-          />
-        </div>
-
-        <div>
-          <label className="font-semibold text-white">Upload Background</label>
-          <input
-            type="file"
-            accept="image/*"
-            className="mt-2 block w-full rounded-2xl border border-white/10 bg-white/5 p-3 text-white"
-            onChange={(e) => handleImageUpload(e, setBackground)}
-          />
-        </div>
-
-        <div>
-          <label className="font-semibold text-white">Upload Promo Image</label>
-          <input
-            type="file"
-            accept="image/*"
-            className="mt-2 block w-full rounded-2xl border border-white/10 bg-white/5 p-3 text-white"
-            onChange={(e) => handleImageUpload(e, setPromoImage)}
-          />
-        </div>
-
-        <div className="flex flex-wrap gap-3">
-          <button
-            className="rounded-2xl bg-gradient-to-r from-cyan-400 to-indigo-500 px-5 py-3 font-semibold text-slate-950"
-            onClick={generateCaption}
-            type="button"
-          >
-            Generate Caption
-          </button>
-
-          <button
-            className="rounded-2xl bg-white px-5 py-3 font-semibold text-slate-950"
-            onClick={copyCaption}
-            type="button"
-          >
-            Copy Caption
-          </button>
-
-          <button
-            className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-5 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-            onClick={downloadPreview}
-            disabled={isDownloading}
-            type="button"
-          >
-            {isDownloading ? "Downloading..." : "Download Preview PNG"}
-          </button>
-
-          <button
-            className="rounded-2xl border border-indigo-300/20 bg-indigo-400/20 px-5 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-            onClick={() => {
-  if (typeof MediaRecorder !== "undefined") {
-    downloadReelWebM();
-  } else {
-    downloadGIF();
-  }
-}}
-            disabled={isRecording}
-            type="button"
-          >
-            {isRecording ? "Recording Reel..." : "Download Reel WebM"}
-          </button>
-        </div>
-<button
-  className="rounded-2xl border border-purple-300/20 bg-purple-400/20 px-5 py-3 font-semibold text-white"
-  onClick={downloadGIF}
-  disabled={isRecording}
-  type="button"
->
-  Download GIF
-</button>
-        {copyStatus ? (
-          <div className="text-sm text-cyan-200">{copyStatus}</div>
-        ) : null}
-
-        {caption && (
-          <textarea
-            className="h-48 w-full rounded-2xl border border-white/10 bg-white/5 p-4 text-white outline-none"
-            value={caption}
-            readOnly
-          />
-        )}
+return (
+  <div className="grid gap-8 md:grid-cols-2">
+    <div className="space-y-6">
+      <div>
+        <label className="font-semibold text-white">Template</label>
+        <select
+          className="mt-2 w-full rounded-2xl border border-white/10 bg-white/5 p-3 text-white outline-none"
+          value={template}
+          onChange={(e) => applyTemplate(e.target.value as Template)}
+        >
+          <option value="website" className="text-black">
+            Website Promo
+          </option>
+          <option value="gis" className="text-black">
+            GIS Project
+          </option>
+          <option value="dashboard" className="text-black">
+            Data Dashboard
+          </option>
+        </select>
       </div>
 
-      <div className="rounded-3xl border border-cyan-300/15 bg-gradient-to-br from-cyan-400/10 to-indigo-500/10 p-6">
-        <div className="mb-4 inline-flex rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-cyan-100">
-          Space Preview
+      <div className="flex items-center gap-3 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-3 text-white">
+        <input
+          id="space-mode"
+          type="checkbox"
+          checked={spaceMode}
+          onChange={(e) => setSpaceMode(e.target.checked)}
+          className="h-4 w-4"
+        />
+        <label htmlFor="space-mode" className="font-medium">
+          Space fly-through mode
+        </label>
+      </div>
+
+      <div>
+        <label className="font-semibold text-white">Headline</label>
+        <input
+          className="mt-2 w-full rounded-2xl border border-white/10 bg-white/5 p-3 text-white outline-none"
+          value={headline}
+          onChange={(e) => setHeadline(e.target.value)}
+        />
+      </div>
+
+      <div>
+        <label className="font-semibold text-white">Subtext</label>
+        <input
+          className="mt-2 w-full rounded-2xl border border-white/10 bg-white/5 p-3 text-white outline-none"
+          value={subtext}
+          onChange={(e) => setSubtext(e.target.value)}
+        />
+      </div>
+
+      <div>
+        <label className="font-semibold text-white">Bullet Items</label>
+        <div className="mt-2 space-y-2">
+          {items.map((item, i) => (
+            <input
+              key={i}
+              className="w-full rounded-2xl border border-white/10 bg-white/5 p-3 text-white outline-none"
+              value={item}
+              onChange={(e) => {
+                const next = [...items];
+                next[i] = e.target.value;
+                setItems(next);
+              }}
+            />
+          ))}
         </div>
+      </div>
 
-        <div className="overflow-hidden rounded-[32px] border border-white/10 bg-[#091321] shadow-2xl">
-          <div
-            ref={previewRef}
-            className={[
-              "relative aspect-[9/16] w-full p-6",
-              spaceMode ? "space-preview" : "",
-            ].join(" ")}
-            style={{
-              backgroundImage: background
-                ? `linear-gradient(180deg, rgba(7,17,31,0.45) 0%, rgba(9,17,31,0.72) 100%), url(${background})`
-                : undefined,
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-              backgroundColor: "#07111f",
-            }}
-          >
-            {spaceMode && (
-              <>
-                <div className="space-stars layer-1" />
-                <div className="space-stars layer-2" />
-                <div className="space-stars layer-3" />
-                <div className="space-glow" />
-              </>
-            )}
+      <div>
+        <label className="font-semibold text-white">Upload Logo</label>
+        <input
+          type="file"
+          accept="image/*"
+          className="mt-2 block w-full rounded-2xl border border-white/10 bg-white/5 p-3 text-white"
+          onChange={(e) => handleImageUpload(e, setLogo)}
+        />
+      </div>
 
-            <div className="relative z-10 flex h-full flex-col justify-between">
-              <div>
-                <h1 className="max-w-md text-3xl font-extrabold leading-tight text-white sm:text-4xl">
-                  {headline}
-                </h1>
+      <div>
+        <label className="font-semibold text-white">Upload Background</label>
+        <input
+          type="file"
+          accept="image/*"
+          className="mt-2 block w-full rounded-2xl border border-white/10 bg-white/5 p-3 text-white"
+          onChange={(e) => handleImageUpload(e, setBackground)}
+        />
+      </div>
 
-                <div className="mt-5 inline-block rounded-2xl bg-[#f5d547] px-4 py-3 text-lg font-extrabold text-slate-900 shadow-lg">
-                  {subtext}
-                </div>
+      <div>
+        <label className="font-semibold text-white">Upload Promo Image</label>
+        <input
+          type="file"
+          accept="image/*"
+          className="mt-2 block w-full rounded-2xl border border-white/10 bg-white/5 p-3 text-white"
+          onChange={(e) => handleImageUpload(e, setPromoImage)}
+        />
+      </div>
 
-                <ul className="mt-6 space-y-3 text-lg font-semibold text-white/95">
-                  {items.map((item, i) => (
-                    <li key={i}>✓ {item}</li>
-                  ))}
-                </ul>
+      <div className="flex flex-wrap gap-3">
+        <button
+          className="rounded-2xl bg-gradient-to-r from-cyan-400 to-indigo-500 px-5 py-3 font-semibold text-slate-950"
+          onClick={generateCaption}
+          type="button"
+        >
+          Generate Caption
+        </button>
+
+        <button
+          className="rounded-2xl bg-white px-5 py-3 font-semibold text-slate-950"
+          onClick={copyCaption}
+          type="button"
+        >
+          Copy Caption
+        </button>
+
+        <button
+          className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-5 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+          onClick={downloadPreview}
+          disabled={isDownloading}
+          type="button"
+        >
+          {isDownloading ? "Downloading..." : "Download Preview PNG"}
+        </button>
+
+        <button
+          className="rounded-2xl border border-indigo-300/20 bg-indigo-400/20 px-5 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+          onClick={() => {
+            if (typeof MediaRecorder !== "undefined") {
+              downloadReelWebM();
+            } else {
+              downloadGIF();
+            }
+          }}
+          disabled={isRecording}
+          type="button"
+        >
+          {isRecording ? "Recording Reel..." : "Download Reel WebM"}
+        </button>
+
+        <button
+          className="rounded-2xl border border-purple-300/20 bg-purple-400/20 px-5 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+          onClick={downloadGIF}
+          disabled={isRecording}
+          type="button"
+        >
+          {isRecording ? "Creating GIF..." : "Download GIF"}
+        </button>
+      </div>
+
+      {copyStatus ? (
+        <div className="text-sm text-cyan-200">{copyStatus}</div>
+      ) : null}
+
+      {caption && (
+        <textarea
+          className="h-48 w-full rounded-2xl border border-white/10 bg-white/5 p-4 text-white outline-none"
+          value={caption}
+          readOnly
+        />
+      )}
+    </div>
+
+    <div className="rounded-3xl border border-cyan-300/15 bg-gradient-to-br from-cyan-400/10 to-indigo-500/10 p-6">
+      <div className="mb-4 inline-flex rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-cyan-100">
+        Space Preview
+      </div>
+
+      <div className="overflow-hidden rounded-[32px] border border-white/10 bg-[#091321] shadow-2xl">
+        <div
+          ref={previewRef}
+          className={[
+            "relative aspect-[9/16] w-full p-6",
+            spaceMode ? "space-preview" : "",
+          ].join(" ")}
+          style={{
+            backgroundImage: background
+              ? `linear-gradient(180deg, rgba(7,17,31,0.45) 0%, rgba(9,17,31,0.72) 100%), url(${background})`
+              : undefined,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            backgroundColor: "#07111f",
+          }}
+        >
+          {spaceMode && (
+            <>
+              <div className="space-stars layer-1" />
+              <div className="space-stars layer-2" />
+              <div className="space-stars layer-3" />
+              <div className="space-glow" />
+            </>
+          )}
+
+          <div className="relative z-10 flex h-full flex-col justify-between">
+            <div>
+              <h1 className="max-w-md text-3xl font-extrabold leading-tight text-white sm:text-4xl">
+                {headline}
+              </h1>
+
+              <div className="mt-5 inline-block rounded-2xl bg-[#f5d547] px-4 py-3 text-lg font-extrabold text-slate-900 shadow-lg">
+                {subtext}
               </div>
 
-              {promoImage && (
-                <div
-                  className={
-                    spaceMode
-                      ? "floating-card mx-auto mt-6 w-[72%]"
-                      : "mx-auto mt-6 w-[72%]"
-                  }
-                >
-                  <div className="overflow-hidden rounded-[24px] border border-white/10 bg-white/5 shadow-2xl">
-                    <img
-                      src={promoImage}
-                      alt="Promo preview"
-                      className="block h-auto w-full object-cover"
-                    />
-                  </div>
+              <ul className="mt-6 space-y-3 text-lg font-semibold text-white/95">
+                {items.map((item, i) => (
+                  <li key={i}>✓ {item}</li>
+                ))}
+              </ul>
+            </div>
+
+            {promoImage && (
+              <div
+                className={
+                  spaceMode
+                    ? "floating-card mx-auto mt-6 w-[72%]"
+                    : "mx-auto mt-6 w-[72%]"
+                }
+              >
+                <div className="overflow-hidden rounded-[24px] border border-white/10 bg-white/5 shadow-2xl">
+                  <img
+                    src={promoImage}
+                    alt="Promo preview"
+                    className="block h-auto w-full object-cover"
+                  />
                 </div>
-              )}
+              </div>
+            )}
 
-              <div className="pt-5">
-                <button
-                  type="button"
-                  className="w-full rounded-2xl bg-white px-5 py-4 text-center text-xl font-extrabold text-slate-900 shadow-xl"
-                >
-                  Start your project
-                </button>
+            <div className="pt-5">
+              <button
+                type="button"
+                className="w-full rounded-2xl bg-white px-5 py-4 text-center text-xl font-extrabold text-slate-900 shadow-xl"
+              >
+                Start your project
+              </button>
 
-                <div className="mt-5 flex items-center gap-4">
-                  {logo ? (
-                    <img
-                      src={logo}
-                      alt="Logo"
-                      className="h-14 w-14 rounded-2xl object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/10 text-xs text-white/60">
-                      Logo
-                    </div>
-                  )}
+              <div className="mt-5 flex items-center gap-4">
+                {logo ? (
+                  <img
+                    src={logo}
+                    alt="Logo"
+                    className="h-14 w-14 rounded-2xl object-cover"
+                  />
+                ) : (
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/10 text-xs text-white/60">
+                    Logo
+                  </div>
+                )}
 
-                  <div>
-                    <div className="text-2xl font-bold tracking-wide text-white">
-                      SPATIALYTICS
-                    </div>
-                    <div className="text-sm text-white/70">
-                      spatialytics.space
-                    </div>
+                <div>
+                  <div className="text-2xl font-bold tracking-wide text-white">
+                    SPATIALYTICS
+                  </div>
+                  <div className="text-sm text-white/70">
+                    spatialytics.space
                   </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
+      </div>
 
-        <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-6 text-white/70">
-          Space fly-through mode adds animated stars and floating motion so the
-          preview feels more like a reel concept.
-        </div>
+      <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-6 text-white/70">
+        Space fly-through mode adds animated stars and floating motion so the
+        preview feels more like a reel concept.
       </div>
     </div>
-  );
+  </div>
+);
 }
