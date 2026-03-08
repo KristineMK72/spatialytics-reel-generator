@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { toPng } from "html-to-image";
+import GIF from "gif.js.optimized";
 
 type Template = "website" | "gis" | "dashboard";
 
@@ -496,6 +497,7 @@ https://spatialytics.space/project-intake
 
   async function downloadReelWebM() {
     const mimeType = getSupportedMimeType();
+}
 
     if (!mimeType) {
       alert(
@@ -580,7 +582,9 @@ https://spatialytics.space/project-intake
       setIsRecording(false);
     }
   }
-
+async function downloadGIF() {
+  alert("GIF export for mobile coming next!");
+}
   return (
     <div className="grid gap-8 md:grid-cols-2">
       <div className="space-y-6">
@@ -710,7 +714,13 @@ https://spatialytics.space/project-intake
 
           <button
             className="rounded-2xl border border-indigo-300/20 bg-indigo-400/20 px-5 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-            onClick={downloadReelWebM}
+            onClick={() => {
+  if (typeof MediaRecorder !== "undefined") {
+    downloadReelWebM();
+  } else {
+    downloadGIF();
+  }
+}}
             disabled={isRecording}
             type="button"
           >
