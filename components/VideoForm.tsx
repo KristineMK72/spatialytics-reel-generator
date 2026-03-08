@@ -27,6 +27,7 @@ export default function VideoForm() {
   const [background, setBackground] = useState<string | null>(null);
   const [promoImage, setPromoImage] = useState<string | null>(null);
   const [caption, setCaption] = useState("");
+  const [isRendering, setIsRendering] = useState(false);
 
   function handleImageUpload(
     e: React.ChangeEvent<HTMLInputElement>,
@@ -34,6 +35,7 @@ export default function VideoForm() {
   ) {
     const file = e.target.files?.[0];
     if (!file) return;
+
     const url = URL.createObjectURL(file);
     setter(url);
   }
@@ -86,7 +88,59 @@ Start your project today:
 https://spatialytics.space
 
 #Spatialytics #GIS #WebDesign #DataVisualization`;
+
     setCaption(text);
+  }
+
+  async function downloadVideo() {
+    try {
+      setIsRendering(true);
+
+      const res = await fetch("/api/render", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          headline,
+          subheadline: subtext,
+          bullets: items,
+          cta: "Start your project",
+          website: "spatialytics.space",
+          backgroundUrl: background || "",
+          promoImageUrl: promoImage || "",
+          logoUrl: logo || "",
+          spaceMode,
+          template,
+        }),
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || "Failed to render video");
+      }
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "spatialytics-reel.mp4";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Video render failed:", error);
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Something went wrong creating the video."
+      );
+    } finally {
+      setIsRendering(false);
+    }
   }
 
   return (
@@ -190,12 +244,24 @@ https://spatialytics.space
           />
         </div>
 
-        <button
-          className="rounded-2xl bg-gradient-to-r from-cyan-400 to-indigo-500 px-5 py-3 font-semibold text-slate-950"
-          onClick={generateCaption}
-        >
-          Generate Caption
-        </button>
+        <div className="flex flex-wrap gap-3">
+          <button
+            className="rounded-2xl bg-gradient-to-r from-cyan-400 to-indigo-500 px-5 py-3 font-semibold text-slate-950"
+            onClick={generateCaption}
+            type="button"
+          >
+            Generate Caption
+          </button>
+
+          <button
+            className="rounded-2xl bg-white px-5 py-3 font-semibold text-slate-950 disabled:cursor-not-allowed disabled:opacity-60"
+            onClick={downloadVideo}
+            disabled={isRendering}
+            type="button"
+          >
+            {isRendering ? "Rendering Video..." : "Download Reel Video"}
+          </button>
+        </div>
 
         {caption && (
           <textarea
@@ -253,7 +319,13 @@ https://spatialytics.space
               </div>
 
               {promoImage && (
-                <div className={spaceMode ? "floating-card mx-auto mt-6 w-[72%]" : "mx-auto mt-6 w-[72%]"}>
+                <div
+                  className={
+                    spaceMode
+                      ? "floating-card mx-auto mt-6 w-[72%]"
+                      : "mx-auto mt-6 w-[72%]"
+                  }
+                >
                   <div className="overflow-hidden rounded-[24px] border border-white/10 bg-white/5 shadow-2xl">
                     <img
                       src={promoImage}
@@ -265,7 +337,10 @@ https://spatialytics.space
               )}
 
               <div className="pt-5">
-                <button className="w-full rounded-2xl bg-white px-5 py-4 text-center text-xl font-extrabold text-slate-900 shadow-xl">
+                <button
+                  type="button"
+                  className="w-full rounded-2xl bg-white px-5 py-4 text-center text-xl font-extrabold text-slate-900 shadow-xl"
+                >
                   Start your project
                 </button>
 
