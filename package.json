@@ -14,7 +14,8 @@
     "next": "15.5.9",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "remotion": "^4.0.221"
+    "remotion": "^4.0.221",
+    "gif.js.optimized": "^1.0.1"
   },
   "devDependencies": {
     "@types/node": "^22.10.1",
