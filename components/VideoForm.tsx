@@ -496,92 +496,92 @@ https://spatialytics.space/project-intake
   }
 
   async function downloadReelWebM() {
-    const mimeType = getSupportedMimeType();
-}
+  const mimeType = getSupportedMimeType();
 
-    if (!mimeType) {
-      alert(
-        "Video recording is not supported in this browser. Desktop Chrome or Edge works best."
-      );
-      return;
+  if (!mimeType) {
+    alert(
+      "Video recording is not supported in this browser. Desktop Chrome or Edge works best."
+    );
+    return;
+  }
+
+  try {
+    setIsRecording(true);
+
+    const [backgroundImg, promoImg, logoImg] = await Promise.all([
+      loadImage(background),
+      loadImage(promoImage),
+      loadImage(logo),
+    ]);
+
+    const assets: LoadedAssets = { backgroundImg, promoImg, logoImg };
+
+    const canvas = document.createElement("canvas");
+    canvas.width = VIDEO_WIDTH;
+    canvas.height = VIDEO_HEIGHT;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      throw new Error("Canvas context could not be created.");
     }
 
-    try {
-      setIsRecording(true);
+    const stream = canvas.captureStream(VIDEO_FPS);
+    const recorder = new MediaRecorder(stream, {
+      mimeType,
+      videoBitsPerSecond: 8_000_000,
+    });
 
-      const [backgroundImg, promoImg, logoImg] = await Promise.all([
-        loadImage(background),
-        loadImage(promoImage),
-        loadImage(logo),
-      ]);
+    const chunks: Blob[] = [];
+    recorder.ondataavailable = (event) => {
+      if (event.data.size > 0) chunks.push(event.data);
+    };
 
-      const assets: LoadedAssets = { backgroundImg, promoImg, logoImg };
+    const stopped = new Promise<Blob>((resolve) => {
+      recorder.onstop = () => {
+        resolve(new Blob(chunks, { type: mimeType }));
+      };
+    });
 
-      const canvas = document.createElement("canvas");
-      canvas.width = VIDEO_WIDTH;
-      canvas.height = VIDEO_HEIGHT;
+    const stars = buildStars(spaceMode ? 180 : 0);
 
-      const ctx = canvas.getContext("2d");
-      if (!ctx) {
-        throw new Error("Canvas context could not be created.");
+    recorder.start(250);
+
+    const start = performance.now();
+
+    await new Promise<void>((resolve) => {
+      function step(now: number) {
+        const elapsed = now - start;
+        drawFrame(ctx, assets, stars, elapsed, VIDEO_DURATION_MS);
+
+        if (elapsed < VIDEO_DURATION_MS) {
+          requestAnimationFrame(step);
+        } else {
+          drawFrame(ctx, assets, stars, VIDEO_DURATION_MS, VIDEO_DURATION_MS);
+          recorder.stop();
+          resolve();
+        }
       }
 
-      const stream = canvas.captureStream(VIDEO_FPS);
-      const recorder = new MediaRecorder(stream, {
-        mimeType,
-        videoBitsPerSecond: 8_000_000,
-      });
+      requestAnimationFrame(step);
+    });
 
-      const chunks: Blob[] = [];
-      recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) chunks.push(event.data);
-      };
+    const blob = await stopped;
+    const url = URL.createObjectURL(blob);
 
-      const stopped = new Promise<Blob>((resolve) => {
-        recorder.onstop = () => {
-          resolve(new Blob(chunks, { type: mimeType }));
-        };
-      });
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "spatialytics-reel.webm";
+    a.click();
 
-      const stars = buildStars(spaceMode ? 180 : 0);
-
-      recorder.start(250);
-
-      const start = performance.now();
-
-      await new Promise<void>((resolve) => {
-        function step(now: number) {
-          const elapsed = now - start;
-          drawFrame(ctx, assets, stars, elapsed, VIDEO_DURATION_MS);
-
-          if (elapsed < VIDEO_DURATION_MS) {
-            requestAnimationFrame(step);
-          } else {
-            drawFrame(ctx, assets, stars, VIDEO_DURATION_MS, VIDEO_DURATION_MS);
-            recorder.stop();
-            resolve();
-          }
-        }
-
-        requestAnimationFrame(step);
-      });
-
-      const blob = await stopped;
-      const url = URL.createObjectURL(blob);
-
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "spatialytics-reel.webm";
-      a.click();
-
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error("WebM render failed:", error);
-      alert("Could not create the reel video.");
-    } finally {
-      setIsRecording(false);
-    }
+    URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error("WebM render failed:", error);
+    alert("Could not create the reel video.");
+  } finally {
+    setIsRecording(false);
   }
+}
+
 async function downloadGIF() {
   alert("GIF export for mobile coming next!");
 }
