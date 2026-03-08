@@ -877,7 +877,7 @@ return (
               <div
                 className={
                   spaceMode
-                    ? "floating-card mx-auto mt-6 w-[72%]"
+                    ? "floating-card hologram-card mx-auto mt-6 w-[72%]"
                     : "mx-auto mt-6 w-[72%]"
                 }
               >
