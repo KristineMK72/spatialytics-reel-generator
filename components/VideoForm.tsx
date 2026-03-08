@@ -1,200 +1,215 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
-type FormState = {
-  headline: string;
-  subheadline: string;
-  bullets: string;
-  cta: string;
-  website: string;
-  backgroundUrl: string;
-  promoImageUrl: string;
-  logoUrl: string;
-};
-
-const defaultState: FormState = {
-  headline: "START YOUR WEBSITE OR GIS PROJECT",
-  subheadline: "Websites, GIS, and data storytelling",
-  bullets: "Interactive maps\nData dashboards\nGIS consulting\nModern business websites",
-  cta: "Start your project",
-  website: "spatialytics.space",
-  backgroundUrl: "/space-bg.jpg",
-  promoImageUrl: "/promo-card.jpg",
-  logoUrl: "/logo.png",
-};
+type Template = "website" | "gis" | "dashboard";
 
 export default function VideoForm() {
-  const [state, setState] = useState<FormState>(defaultState);
+  const [template, setTemplate] = useState<Template>("website");
 
-  const previewBullets = useMemo(
-    () =>
-      state.bullets
-        .split("\n")
-        .map((line) => line.trim())
-        .filter(Boolean),
-    [state.bullets]
+  const [headline, setHeadline] = useState(
+    "START YOUR WEBSITE OR GIS PROJECT"
   );
 
-  function update<K extends keyof FormState>(key: K, value: FormState[K]) {
-    setState((prev) => ({ ...prev, [key]: value }));
+  const [subtext, setSubtext] = useState(
+    "Websites, GIS, and data storytelling"
+  );
+
+  const [items, setItems] = useState([
+    "Interactive maps",
+    "Data dashboards",
+    "GIS consulting",
+    "Modern business websites",
+  ]);
+
+  const [logo, setLogo] = useState<string | null>(null);
+  const [background, setBackground] = useState<string | null>(null);
+  const [caption, setCaption] = useState("");
+
+  function handleImageUpload(
+    e: React.ChangeEvent<HTMLInputElement>,
+    setter: (url: string) => void
+  ) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const url = URL.createObjectURL(file);
+    setter(url);
+  }
+
+  function applyTemplate(value: Template) {
+    setTemplate(value);
+
+    if (value === "website") {
+      setHeadline("START YOUR BUSINESS WEBSITE");
+      setSubtext("Modern websites for growing businesses");
+      setItems([
+        "Responsive websites",
+        "Online booking",
+        "SEO optimization",
+        "Mobile-friendly design",
+      ]);
+    }
+
+    if (value === "gis") {
+      setHeadline("START YOUR GIS PROJECT");
+      setSubtext("Spatial intelligence for real-world decisions");
+      setItems([
+        "Interactive maps",
+        "Spatial data analysis",
+        "Environmental mapping",
+        "Municipal GIS solutions",
+      ]);
+    }
+
+    if (value === "dashboard") {
+      setHeadline("BUILD A DATA DASHBOARD");
+      setSubtext("Turn your data into visual insight");
+      setItems([
+        "Data dashboards",
+        "Analytics visualizations",
+        "Interactive charts",
+        "Decision-support tools",
+      ]);
+    }
+  }
+
+  function generateCaption() {
+    const text = `
+Need help with a website or GIS project?
+
+Spatialytics helps businesses and organizations turn data into powerful tools.
+
+✔ ${items.join("\n✔ ")}
+
+Start your project today:
+https://spatialytics.space
+`;
+
+    setCaption(text);
   }
 
   return (
-    <div className="grid gap-8 lg:grid-cols-[1.05fr_.95fr]">
-      <section className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur">
-        <h2 className="text-2xl font-semibold text-white">Reel Content</h2>
-        <p className="mt-2 text-sm leading-6 text-white/70">
-          Start with a simple promo structure for websites, GIS services, and dashboards.
-        </p>
+    <div className="grid gap-8 md:grid-cols-2">
 
-        <div className="mt-6 space-y-4">
-          <Field label="Headline">
-            <input
-              value={state.headline}
-              onChange={(e) => update("headline", e.target.value)}
-              className={inputClass}
-              placeholder="START YOUR WEBSITE OR GIS PROJECT"
-            />
-          </Field>
+      {/* LEFT SIDE CONTROLS */}
 
-          <Field label="Subheadline">
-            <input
-              value={state.subheadline}
-              onChange={(e) => update("subheadline", e.target.value)}
-              className={inputClass}
-              placeholder="Websites, GIS, and data storytelling"
-            />
-          </Field>
+      <div className="space-y-6">
 
-          <Field label="Bullets (one per line)">
-            <textarea
-              value={state.bullets}
-              onChange={(e) => update("bullets", e.target.value)}
-              className={textareaClass}
-              rows={6}
-              placeholder={"Interactive maps\nData dashboards\nGIS consulting"}
-            />
-          </Field>
-
-          <Field label="CTA">
-            <input
-              value={state.cta}
-              onChange={(e) => update("cta", e.target.value)}
-              className={inputClass}
-              placeholder="Start your project"
-            />
-          </Field>
-
-          <Field label="Website">
-            <input
-              value={state.website}
-              onChange={(e) => update("website", e.target.value)}
-              className={inputClass}
-              placeholder="spatialytics.space"
-            />
-          </Field>
-
-          <Field label="Background image URL">
-            <input
-              value={state.backgroundUrl}
-              onChange={(e) => update("backgroundUrl", e.target.value)}
-              className={inputClass}
-              placeholder="/space-bg.jpg"
-            />
-          </Field>
-
-          <Field label="Promo card image URL">
-            <input
-              value={state.promoImageUrl}
-              onChange={(e) => update("promoImageUrl", e.target.value)}
-              className={inputClass}
-              placeholder="/promo-card.jpg"
-            />
-          </Field>
-
-          <Field label="Logo URL">
-            <input
-              value={state.logoUrl}
-              onChange={(e) => update("logoUrl", e.target.value)}
-              className={inputClass}
-              placeholder="/logo.png"
-            />
-          </Field>
-        </div>
-      </section>
-
-      <section className="rounded-3xl border border-cyan-300/15 bg-gradient-to-br from-cyan-400/10 to-indigo-500/10 p-6">
-        <div className="mb-4 inline-flex rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-cyan-100">
-          Preview Content
+        <div>
+          <label className="font-semibold">Template</label>
+          <select
+            className="w-full border rounded p-2 mt-2"
+            value={template}
+            onChange={(e) =>
+              applyTemplate(e.target.value as Template)
+            }
+          >
+            <option value="website">Website Promo</option>
+            <option value="gis">GIS Project</option>
+            <option value="dashboard">Data Dashboard</option>
+          </select>
         </div>
 
-        <div className="overflow-hidden rounded-[32px] border border-white/10 bg-[#091321] shadow-2xl">
-          <div className="aspect-[9/16] w-full bg-[radial-gradient(circle_at_top,rgba(82,125,255,0.20),transparent_28%),linear-gradient(180deg,#07111f_0%,#0b1730_48%,#09111f_100%)] p-6">
-            <div className="flex h-full flex-col justify-between">
-              <div>
-                <div className="max-w-md text-3xl font-extrabold leading-tight text-white sm:text-4xl">
-                  {state.headline}
-                </div>
+        <div>
+          <label className="font-semibold">Headline</label>
+          <input
+            className="w-full border rounded p-2 mt-2"
+            value={headline}
+            onChange={(e) => setHeadline(e.target.value)}
+          />
+        </div>
 
-                <div className="mt-5 inline-flex rounded-2xl bg-[#f5d547] px-4 py-3 text-lg font-extrabold text-slate-900">
-                  {state.subheadline}
-                </div>
+        <div>
+          <label className="font-semibold">Subtext</label>
+          <input
+            className="w-full border rounded p-2 mt-2"
+            value={subtext}
+            onChange={(e) => setSubtext(e.target.value)}
+          />
+        </div>
 
-                <div className="mt-6 space-y-3 text-lg font-semibold text-white/95">
-                  {previewBullets.map((item, idx) => (
-                    <div key={idx}>✓ {item}</div>
-                  ))}
-                </div>
-              </div>
+        <div>
+          <label className="font-semibold">Upload Logo</label>
+          <input
+            type="file"
+            className="mt-2"
+            onChange={(e) => handleImageUpload(e, setLogo)}
+          />
+        </div>
 
-              <div>
-                <div className="rounded-2xl bg-white px-5 py-4 text-center text-xl font-extrabold text-slate-900">
-                  {state.cta}
-                </div>
+        <div>
+          <label className="font-semibold">Upload Background</label>
+          <input
+            type="file"
+            className="mt-2"
+            onChange={(e) => handleImageUpload(e, setBackground)}
+          />
+        </div>
 
-                <div className="mt-5 flex items-center gap-4">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/10 text-xs text-white/60">
-                    Logo
-                  </div>
-                  <div>
-                    <div className="text-2xl font-bold tracking-wide text-white">
-                      SPATIALYTICS
-                    </div>
-                    <div className="text-sm text-white/70">{state.website}</div>
-                  </div>
-                </div>
-              </div>
+        <button
+          className="bg-blue-600 text-white px-4 py-2 rounded"
+          onClick={generateCaption}
+        >
+          Generate Caption
+        </button>
+
+        {caption && (
+          <textarea
+            className="w-full border rounded p-3 h-40"
+            value={caption}
+            readOnly
+          />
+        )}
+      </div>
+
+      {/* RIGHT SIDE PREVIEW */}
+
+      <div
+        className="rounded-xl p-8 text-white"
+        style={{
+          backgroundImage: background ? `url(${background})` : undefined,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundColor: "#0b1d3a",
+        }}
+      >
+        <div className="space-y-6">
+
+          <h1 className="text-3xl font-bold leading-tight">
+            {headline}
+          </h1>
+
+          <div className="bg-yellow-400 text-black px-4 py-2 rounded inline-block">
+            {subtext}
+          </div>
+
+          <ul className="space-y-2">
+            {items.map((item, i) => (
+              <li key={i}>✔ {item}</li>
+            ))}
+          </ul>
+
+          <button className="bg-white text-black px-6 py-2 rounded">
+            Start your project
+          </button>
+
+          <div className="flex items-center gap-4 pt-6">
+            {logo && (
+              <img
+                src={logo}
+                className="w-12 h-12 rounded"
+              />
+            )}
+
+            <div>
+              <div className="font-bold">SPATIALYTICS</div>
+              <div className="text-sm">spatialytics.space</div>
             </div>
           </div>
-        </div>
 
-        <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-6 text-white/70">
-          This page is a content editor preview. Final MP4 export will come from the
-          Remotion template.
         </div>
-      </section>
+      </div>
     </div>
   );
 }
-
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <label className="block">
-      <span className="mb-2 block text-sm font-medium text-white/85">{label}</span>
-      {children}
-    </label>
-  );
-}
-
-const inputClass =
-  "w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none placeholder:text-white/35 focus:border-cyan-300/40 focus:bg-white/10";
-
-const textareaClass =
-  "w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none placeholder:text-white/35 focus:border-cyan-300/40 focus:bg-white/10";
