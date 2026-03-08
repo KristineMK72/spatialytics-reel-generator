@@ -29,3 +29,110 @@ a {
   color: inherit;
   text-decoration: none;
 }
+
+.space-preview {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.space-stars {
+  position: absolute;
+  inset: -30%;
+  background-repeat: repeat;
+  pointer-events: none;
+  opacity: 0.9;
+}
+
+.space-stars.layer-1 {
+  background-image:
+    radial-gradient(circle, rgba(255,255,255,0.95) 1.2px, transparent 1.8px);
+  background-size: 120px 120px;
+  animation: starDrift1 18s linear infinite;
+  opacity: 0.55;
+}
+
+.space-stars.layer-2 {
+  background-image:
+    radial-gradient(circle, rgba(160,220,255,0.95) 1.4px, transparent 2px);
+  background-size: 180px 180px;
+  animation: starDrift2 12s linear infinite;
+  opacity: 0.45;
+}
+
+.space-stars.layer-3 {
+  background-image:
+    radial-gradient(circle, rgba(255,255,255,0.95) 2px, transparent 2.8px);
+  background-size: 260px 260px;
+  animation: starDrift3 8s linear infinite;
+  opacity: 0.32;
+}
+
+.space-glow {
+  position: absolute;
+  width: 70%;
+  height: 42%;
+  left: 15%;
+  top: 12%;
+  border-radius: 999px;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(76, 119, 255, 0.28) 0%,
+    rgba(64, 196, 255, 0.14) 28%,
+    rgba(0, 0, 0, 0) 72%
+  );
+  filter: blur(24px);
+  animation: glowPulse 6s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.floating-card {
+  animation: floatCard 4.5s ease-in-out infinite;
+}
+
+@keyframes starDrift1 {
+  0% {
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    transform: translateY(18%) scale(1.18);
+  }
+}
+
+@keyframes starDrift2 {
+  0% {
+    transform: translateY(-4%) scale(1);
+  }
+  100% {
+    transform: translateY(26%) scale(1.3);
+  }
+}
+
+@keyframes starDrift3 {
+  0% {
+    transform: translateY(-8%) scale(1);
+  }
+  100% {
+    transform: translateY(34%) scale(1.45);
+  }
+}
+
+@keyframes glowPulse {
+  0%, 100% {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}
+
+@keyframes floatCard {
+  0%, 100% {
+    transform: translateY(0) rotate(-5deg);
+  }
+  50% {
+    transform: translateY(-10px) rotate(-3deg);
+  }
+}
