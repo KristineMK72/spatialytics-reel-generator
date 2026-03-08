@@ -1,10 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { toPng } from "html-to-image";
 
 type Template = "website" | "gis" | "dashboard";
 
 export default function VideoForm() {
+  const previewRef = useRef<HTMLDivElement | null>(null);
+
   const [template, setTemplate] = useState<Template>("website");
   const [spaceMode, setSpaceMode] = useState(true);
 
@@ -27,7 +30,8 @@ export default function VideoForm() {
   const [background, setBackground] = useState<string | null>(null);
   const [promoImage, setPromoImage] = useState<string | null>(null);
   const [caption, setCaption] = useState("");
-  const [isRendering, setIsRendering] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [copyStatus, setCopyStatus] = useState("");
 
   function handleImageUpload(
     e: React.ChangeEvent<HTMLInputElement>,
@@ -75,6 +79,9 @@ export default function VideoForm() {
         "Decision-support tools",
       ]);
     }
+
+    setCaption("");
+    setCopyStatus("");
   }
 
   function generateCaption() {
@@ -85,61 +92,59 @@ ${subtext}
 ✔ ${items.join("\n✔ ")}
 
 Start your project today:
-https://spatialytics.space
+https://spatialytics.space/project-intake
 
 #Spatialytics #GIS #WebDesign #DataVisualization`;
 
     setCaption(text);
+    setCopyStatus("");
   }
 
-  async function downloadVideo() {
+  async function copyCaption() {
     try {
-      setIsRendering(true);
+      const textToCopy =
+        caption ||
+        `🚀 ${headline}
 
-      const res = await fetch("/api/render", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          headline,
-          subheadline: subtext,
-          bullets: items,
-          cta: "Start your project",
-          website: "spatialytics.space",
-          backgroundUrl: background || "",
-          promoImageUrl: promoImage || "",
-          logoUrl: logo || "",
-          spaceMode,
-          template,
-        }),
+${subtext}
+
+✔ ${items.join("\n✔ ")}
+
+Start your project today:
+https://spatialytics.space/project-intake
+
+#Spatialytics #GIS #WebDesign #DataVisualization`;
+
+      await navigator.clipboard.writeText(textToCopy);
+      setCopyStatus("Caption copied!");
+      setTimeout(() => setCopyStatus(""), 2000);
+    } catch (error) {
+      console.error("Copy failed:", error);
+      setCopyStatus("Copy failed");
+      setTimeout(() => setCopyStatus(""), 2000);
+    }
+  }
+
+  async function downloadPreview() {
+    if (!previewRef.current) return;
+
+    try {
+      setIsDownloading(true);
+
+      const dataUrl = await toPng(previewRef.current, {
+        cacheBust: true,
+        pixelRatio: 2,
       });
 
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || "Failed to render video");
-      }
-
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "spatialytics-reel.mp4";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-
-      URL.revokeObjectURL(url);
+      const link = document.createElement("a");
+      link.download = "spatialytics-preview.png";
+      link.href = dataUrl;
+      link.click();
     } catch (error) {
-      console.error("Video render failed:", error);
-      alert(
-        error instanceof Error
-          ? error.message
-          : "Something went wrong creating the video."
-      );
+      console.error("Download failed:", error);
+      alert("Could not download preview image.");
     } finally {
-      setIsRendering(false);
+      setIsDownloading(false);
     }
   }
 
@@ -254,14 +259,26 @@ https://spatialytics.space
           </button>
 
           <button
-            className="rounded-2xl bg-white px-5 py-3 font-semibold text-slate-950 disabled:cursor-not-allowed disabled:opacity-60"
-            onClick={downloadVideo}
-            disabled={isRendering}
+            className="rounded-2xl bg-white px-5 py-3 font-semibold text-slate-950"
+            onClick={copyCaption}
             type="button"
           >
-            {isRendering ? "Rendering Video..." : "Download Reel Video"}
+            Copy Caption
+          </button>
+
+          <button
+            className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-5 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+            onClick={downloadPreview}
+            disabled={isDownloading}
+            type="button"
+          >
+            {isDownloading ? "Downloading..." : "Download Preview PNG"}
           </button>
         </div>
+
+        {copyStatus ? (
+          <div className="text-sm text-cyan-200">{copyStatus}</div>
+        ) : null}
 
         {caption && (
           <textarea
@@ -279,6 +296,7 @@ https://spatialytics.space
 
         <div className="overflow-hidden rounded-[32px] border border-white/10 bg-[#091321] shadow-2xl">
           <div
+            ref={previewRef}
             className={[
               "relative aspect-[9/16] w-full p-6",
               spaceMode ? "space-preview" : "",
@@ -370,6 +388,7 @@ https://spatialytics.space
             </div>
           </div>
         </div>
+
 
         <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-6 text-white/70">
           Space fly-through mode adds animated stars and floating motion so the
