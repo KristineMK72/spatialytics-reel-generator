@@ -762,7 +762,14 @@ async function downloadGIF() {
             {isRecording ? "Recording Reel..." : "Download Reel WebM"}
           </button>
         </div>
-
+<button
+  className="rounded-2xl border border-purple-300/20 bg-purple-400/20 px-5 py-3 font-semibold text-white"
+  onClick={downloadGIF}
+  disabled={isRecording}
+  type="button"
+>
+  Download GIF
+</button>
         {copyStatus ? (
           <div className="text-sm text-cyan-200">{copyStatus}</div>
         ) : null}
