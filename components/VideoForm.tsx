@@ -755,6 +755,149 @@ async function downloadGIF() {
   } else {
     downloadGIF();
   }
+}
+            disabled={isRecording}
+            type="button"
+          >
+            {isRecording ? "Recording Reel..." : "Download Reel WebM"}
+          </button>
+        </div>
+<
+  return (
+    <div className="grid gap-8 md:grid-cols-2">
+      <div className="space-y-6">
+        <div>
+          <label className="font-semibold text-white">Template</label>
+          <select
+            className="mt-2 w-full rounded-2xl border border-white/10 bg-white/5 p-3 text-white outline-none"
+            value={template}
+            onChange={(e) => applyTemplate(e.target.value as Template)}
+          >
+            <option value="website" className="text-black">
+              Website Promo
+            </option>
+            <option value="gis" className="text-black">
+              GIS Project
+            </option>
+            <option value="dashboard" className="text-black">
+              Data Dashboard
+            </option>
+          </select>
+        </div>
+
+        <div className="flex items-center gap-3 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-3 text-white">
+          <input
+            id="space-mode"
+            type="checkbox"
+            checked={spaceMode}
+            onChange={(e) => setSpaceMode(e.target.checked)}
+            className="h-4 w-4"
+          />
+          <label htmlFor="space-mode" className="font-medium">
+            Space fly-through mode
+          </label>
+        </div>
+
+        <div>
+          <label className="font-semibold text-white">Headline</label>
+          <input
+            className="mt-2 w-full rounded-2xl border border-white/10 bg-white/5 p-3 text-white outline-none"
+            value={headline}
+            onChange={(e) => setHeadline(e.target.value)}
+          />
+        </div>
+
+        <div>
+          <label className="font-semibold text-white">Subtext</label>
+          <input
+            className="mt-2 w-full rounded-2xl border border-white/10 bg-white/5 p-3 text-white outline-none"
+            value={subtext}
+            onChange={(e) => setSubtext(e.target.value)}
+          />
+        </div>
+
+        <div>
+          <label className="font-semibold text-white">Bullet Items</label>
+          <div className="mt-2 space-y-2">
+            {items.map((item, i) => (
+              <input
+                key={i}
+                className="w-full rounded-2xl border border-white/10 bg-white/5 p-3 text-white outline-none"
+                value={item}
+                onChange={(e) => {
+                  const next = [...items];
+                  next[i] = e.target.value;
+                  setItems(next);
+                }}
+              />
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <label className="font-semibold text-white">Upload Logo</label>
+          <input
+            type="file"
+            accept="image/*"
+            className="mt-2 block w-full rounded-2xl border border-white/10 bg-white/5 p-3 text-white"
+            onChange={(e) => handleImageUpload(e, setLogo)}
+          />
+        </div>
+
+        <div>
+          <label className="font-semibold text-white">Upload Background</label>
+          <input
+            type="file"
+            accept="image/*"
+            className="mt-2 block w-full rounded-2xl border border-white/10 bg-white/5 p-3 text-white"
+            onChange={(e) => handleImageUpload(e, setBackground)}
+          />
+        </div>
+
+        <div>
+          <label className="font-semibold text-white">Upload Promo Image</label>
+          <input
+            type="file"
+            accept="image/*"
+            className="mt-2 block w-full rounded-2xl border border-white/10 bg-white/5 p-3 text-white"
+            onChange={(e) => handleImageUpload(e, setPromoImage)}
+          />
+        </div>
+
+        <div className="flex flex-wrap gap-3">
+          <button
+            className="rounded-2xl bg-gradient-to-r from-cyan-400 to-indigo-500 px-5 py-3 font-semibold text-slate-950"
+            onClick={generateCaption}
+            type="button"
+          >
+            Generate Caption
+          </button>
+
+          <button
+            className="rounded-2xl bg-white px-5 py-3 font-semibold text-slate-950"
+            onClick={copyCaption}
+            type="button"
+          >
+            Copy Caption
+          </button>
+
+          <button
+            className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-5 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+            onClick={downloadPreview}
+            disabled={isDownloading}
+            type="button"
+          >
+            {isDownloading ? "Downloading..." : "Download Preview PNG"}
+          </button>
+
+          <button
+            className="rounded-2xl border border-indigo-300/20 bg-indigo-400/20 px-5 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+            onClick={() => {
+  if (typeof MediaRecorder !== "undefined") {
+    downloadReelWebM();
+  } else {
+    downloadGIF();
+  }
 }}
             disabled={isRecording}
             type="button"
