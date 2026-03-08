@@ -1,13 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-
+  typedRoutes: false,
   images: {
     remotePatterns: [],
-  },
-
-  experimental: {
-    typedRoutes: false,
   },
 };
 
