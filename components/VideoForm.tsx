@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { toPng } from "html-to-image";
 import GIF from "gif.js.optimized";
+import gifshot from "gifshot";
 
 type Template = "website" | "gis" | "dashboard";
 
@@ -583,7 +584,41 @@ https://spatialytics.space/project-intake
 }
 
 async function downloadGIF() {
-  alert("GIF export for mobile coming next!");
+  try {
+    setIsRecording(true);
+
+    const canvas = document.createElement("canvas");
+    canvas.width = VIDEO_WIDTH;
+    canvas.height = VIDEO_HEIGHT;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      alert("Canvas not supported.");
+      return;
+    }
+
+    ctx.fillStyle = "#07111f";
+    ctx.fillRect(0, 0, VIDEO_WIDTH, VIDEO_HEIGHT);
+
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 60px Arial";
+    ctx.fillText("SPATIALYTICS", 120, 300);
+
+    ctx.font = "40px Arial";
+    ctx.fillText("Website + GIS Solutions", 120, 380);
+
+    const url = canvas.toDataURL("image/png");
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "spatialytics-preview.png";
+    a.click();
+
+  } catch (error) {
+    console.error("GIF fallback failed:", error);
+  } finally {
+    setIsRecording(false);
+  }
 }
   return (
     <div className="grid gap-8 md:grid-cols-2">
