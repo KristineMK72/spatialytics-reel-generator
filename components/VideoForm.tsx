@@ -463,62 +463,56 @@ https://spatialytics.space/project-intake
   }
 
   function drawPromoCards(
-    ctx: CanvasRenderingContext2D,
-    promoImgs: HTMLImageElement[],
-    elapsed: number
-  ) {
-    if (!promoImgs.length) return;
+  ctx: CanvasRenderingContext2D,
+  promoImgs: HTMLImageElement[],
+  elapsed: number
+) {
+  if (!promoImgs.length) return;
 
-    const visibleCount = Math.min(promoImgs.length, 5);
-    const startX = VIDEO_WIDTH / 2;
-    const startY = 1120;
+  const visibleCount = Math.min(promoImgs.length, 4);
+  const centerX = VIDEO_WIDTH / 2;
+  const centerY = 1135;
 
-    for (let i = 0; i < visibleCount; i++) {
-      const img = promoImgs[i];
-      const offsetMs = i * 550;
-      const localElapsed = elapsed - (1100 + offsetMs);
+  for (let i = 0; i < visibleCount; i++) {
+    const img = promoImgs[i];
+    const appear = Math.max(0, Math.min(1, (elapsed - (1200 + i * 220)) / 700));
+    if (appear <= 0) continue;
 
-      if (localElapsed < 0) continue;
+    const offsets = [
+      { x: -180, y: 10, r: -10 },
+      { x: 180, y: -40, r: 8 },
+      { x: -40, y: 140, r: -4 },
+      { x: 140, y: 110, r: 10 },
+    ];
 
-      const phase = (localElapsed % 3400) / 3400;
-      const t = easeOutCubic(Math.max(0, Math.min(1, phase)));
+    const cfg = offsets[i] || { x: 0, y: 0, r: 0 };
 
-      const laneOffsets = [-210, 180, -110, 250, 0];
-      const laneX = laneOffsets[i % laneOffsets.length];
+    const floatY = Math.sin((elapsed + i * 260) / 500) * 8;
+    const scale = 0.84 + Math.sin((elapsed + i * 200) / 900) * 0.02;
 
-      const x = startX + laneX * (1 - t * 0.25);
-      const y = startY - t * 540 + Math.sin((elapsed + i * 220) / 380) * 8;
+    const w = 360 * scale;
+    const h = 260 * scale;
 
-      const scale = 0.42 + t * 0.95;
-      const w = 330 * scale;
-      const h = 240 * scale;
+    ctx.save();
+    ctx.globalAlpha = appear;
+    ctx.translate(centerX + cfg.x, centerY + cfg.y + floatY);
+    ctx.rotate((cfg.r * Math.PI) / 180);
 
-      const rotationDeg = (-12 + i * 5) * (1 - t * 0.45);
-      const rotation = rotationDeg * (Math.PI / 180);
+    ctx.shadowColor = "rgba(0,0,0,0.45)";
+    ctx.shadowBlur = 28;
 
-      const alpha = phase < 0.12 ? phase / 0.12 : phase > 0.92 ? (1 - phase) / 0.08 : 1;
-      if (alpha <= 0) continue;
+    roundRect(ctx, -w / 2, -h / 2, w, h, 28);
+    ctx.fillStyle = "rgba(255,255,255,0.08)";
+    ctx.fill();
 
-      ctx.save();
-      ctx.globalAlpha = alpha;
-      ctx.translate(x, y);
-      ctx.rotate(rotation);
+    ctx.beginPath();
+    roundRect(ctx, -w / 2, -h / 2, w, h, 28);
+    ctx.clip();
 
-      ctx.shadowColor = "rgba(0,0,0,0.45)";
-      ctx.shadowBlur = 32;
+    ctx.drawImage(img, -w / 2, -h / 2, w, h);
 
-      roundRect(ctx, -w / 2, -h / 2, w, h, 28);
-      ctx.fillStyle = "rgba(255,255,255,0.08)";
-      ctx.fill();
-
-      ctx.beginPath();
-      roundRect(ctx, -w / 2, -h / 2, w, h, 28);
-      ctx.clip();
-
-      ctx.drawImage(img, -w / 2, -h / 2, w, h);
-
-      ctx.restore();
-    }
+    ctx.restore();
+  }
   }
 
   function drawBottomBar(
