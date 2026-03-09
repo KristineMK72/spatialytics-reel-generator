@@ -136,3 +136,27 @@ a {
     transform: translateY(-10px) rotate(-3deg);
   }
 }
+.hologram-card {
+  transform-style: preserve-3d;
+  animation:
+    floatCard 4.5s ease-in-out infinite,
+    hologramTilt 6s ease-in-out infinite;
+  box-shadow:
+    0 20px 50px rgba(0,0,0,0.35),
+    0 0 30px rgba(95,180,255,0.18);
+}
+
+@keyframes hologramTilt {
+  0%,100% {
+    transform: translateY(0) rotate(-5deg) rotateX(0deg) rotateY(0deg);
+  }
+  25% {
+    transform: translateY(-6px) rotate(-4deg) rotateX(4deg) rotateY(-6deg);
+  }
+  50% {
+    transform: translateY(-10px) rotate(-3deg) rotateX(0deg) rotateY(6deg);
+  }
+  75% {
+    transform: translateY(-6px) rotate(-4deg) rotateX(-4deg) rotateY(-4deg);
+  }
+}
