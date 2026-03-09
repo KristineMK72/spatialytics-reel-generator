@@ -2,14 +2,13 @@
 
 import { useRef, useState } from "react";
 import { toPng } from "html-to-image";
-import GIF from "gif.js.optimized";
 import gifshot from "gifshot";
 
 type Template = "website" | "gis" | "dashboard";
 
 type LoadedAssets = {
   backgroundImg: HTMLImageElement | null;
-  promoImg: HTMLImageElement | null;
+  promoImgs: HTMLImageElement[];
   logoImg: HTMLImageElement | null;
 };
 
@@ -50,7 +49,7 @@ export default function VideoForm() {
 
   const [logo, setLogo] = useState<string | null>(null);
   const [background, setBackground] = useState<string | null>(null);
-  const [promoImage, setPromoImage] = useState<string | null>(null);
+  const [promoImages, setPromoImages] = useState<string[]>([]);
 
   const [caption, setCaption] = useState("");
   const [copyStatus, setCopyStatus] = useState("");
@@ -64,6 +63,24 @@ export default function VideoForm() {
     const file = e.target.files?.[0];
     if (!file) return;
     setter(URL.createObjectURL(file));
+  }
+
+  function handleMultiplePromoUpload(
+    e: React.ChangeEvent<HTMLInputElement>
+  ) {
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) return;
+
+    const urls = files.map((file) => URL.createObjectURL(file));
+    setPromoImages(urls);
+  }
+
+  function removePromoImage(index: number) {
+    setPromoImages((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function clearPromoImages() {
+    setPromoImages([]);
   }
 
   function applyTemplate(value: Template) {
@@ -170,7 +187,9 @@ https://spatialytics.space/project-intake
     }
   }
 
-  async function loadImage(url: string | null): Promise<HTMLImageElement | null> {
+  async function loadImage(
+    url: string | null
+  ): Promise<HTMLImageElement | null> {
     if (!url) return null;
 
     return new Promise((resolve) => {
@@ -180,6 +199,11 @@ https://spatialytics.space/project-intake
       img.onerror = () => resolve(null);
       img.src = url;
     });
+  }
+
+  async function loadImages(urls: string[]): Promise<HTMLImageElement[]> {
+    const loaded = await Promise.all(urls.map((url) => loadImage(url)));
+    return loaded.filter((img): img is HTMLImageElement => img !== null);
   }
 
   function getSupportedMimeType() {
@@ -243,6 +267,34 @@ https://spatialytics.space/project-intake
     ctx.closePath();
   }
 
+  function getWrappedLines(
+    ctx: CanvasRenderingContext2D,
+    text: string,
+    maxWidth: number
+  ) {
+    const words = text.split(" ");
+    const lines: string[] = [];
+    let line = "";
+
+    for (let n = 0; n < words.length; n++) {
+      const testLine = `${line}${words[n]} `;
+      const metrics = ctx.measureText(testLine);
+
+      if (metrics.width > maxWidth && n > 0) {
+        lines.push(line.trim());
+        line = `${words[n]} `;
+      } else {
+        line = testLine;
+      }
+    }
+
+    if (line.trim()) {
+      lines.push(line.trim());
+    }
+
+    return lines;
+  }
+
   function drawWrappedText(
     ctx: CanvasRenderingContext2D,
     text: string,
@@ -251,29 +303,18 @@ https://spatialytics.space/project-intake
     maxWidth: number,
     lineHeight: number
   ) {
-    const words = text.split(" ");
-    let line = "";
+    const lines = getWrappedLines(ctx, text, maxWidth);
     let currentY = y;
 
-    for (let n = 0; n < words.length; n++) {
-      const testLine = `${line}${words[n]} `;
-      const metrics = ctx.measureText(testLine);
-      if (metrics.width > maxWidth && n > 0) {
-        ctx.fillText(line.trim(), x, currentY);
-        line = `${words[n]} `;
-        currentY += lineHeight;
-      } else {
-        line = testLine;
-      }
+    for (const line of lines) {
+      ctx.fillText(line, x, currentY);
+      currentY += lineHeight;
     }
 
-    if (line) {
-      ctx.fillText(line.trim(), x, currentY);
-    }
-
-    return currentY;
+    return currentY - lineHeight;
   }
-    function drawGradientBackground(ctx: CanvasRenderingContext2D) {
+
+  function drawGradientBackground(ctx: CanvasRenderingContext2D) {
     const bg = ctx.createLinearGradient(0, 0, 0, VIDEO_HEIGHT);
     bg.addColorStop(0, "#07111f");
     bg.addColorStop(0.48, "#0b1730");
@@ -344,7 +385,6 @@ https://spatialytics.space/project-intake
     const yOffset = (1 - fadeIn) * 30;
 
     ctx.save();
-
     ctx.globalAlpha = fadeIn;
 
     ctx.shadowColor = "rgba(0,0,0,0.45)";
@@ -353,23 +393,62 @@ https://spatialytics.space/project-intake
     ctx.fillStyle = "#ffffff";
     ctx.font = "800 64px Arial";
 
-    drawWrappedText(ctx, textHeadline, 72, 150 + yOffset, 760, 76);
+    const headlineBottomY = drawWrappedText(
+      ctx,
+      textHeadline,
+      72,
+      150 + yOffset,
+      760,
+      76
+    );
 
-    roundRect(ctx, 72, 360 + yOffset, 520, 84, 18);
+    ctx.shadowBlur = 0;
+    ctx.font = "800 34px Arial";
 
+    const subPaddingX = 24;
+    const subPaddingTop = 20;
+    const subPaddingBottom = 18;
+    const subLineHeight = 40;
+    const subMaxWidth = 760;
+
+    const subLines = getWrappedLines(
+      ctx,
+      textSubtext,
+      subMaxWidth - subPaddingX * 2
+    );
+
+    let widestLine = 0;
+    for (const line of subLines) {
+      widestLine = Math.max(widestLine, ctx.measureText(line).width);
+    }
+
+    const barW = Math.min(
+      760,
+      Math.max(360, widestLine + subPaddingX * 2)
+    );
+    const barH =
+      subPaddingTop + subLines.length * subLineHeight + subPaddingBottom;
+
+    const barX = 72;
+    const barY = headlineBottomY + 48;
+
+    roundRect(ctx, barX, barY, barW, barH, 18);
     ctx.fillStyle = "#f5d547";
     ctx.fill();
 
     ctx.fillStyle = "#102246";
     ctx.font = "800 34px Arial";
-    ctx.shadowBlur = 0;
 
-    ctx.fillText(textSubtext, 96, 414 + yOffset);
+    let textY = barY + subPaddingTop + 22;
+    for (const line of subLines) {
+      ctx.fillText(line, barX + subPaddingX, textY);
+      textY += subLineHeight;
+    }
 
     ctx.fillStyle = "#ffffff";
     ctx.font = "700 34px Arial";
 
-    let bulletY = 520 + yOffset;
+    let bulletY = barY + barH + 78;
 
     for (const item of bulletItems) {
       ctx.fillText(`✓ ${item}`, 72, bulletY);
@@ -379,49 +458,70 @@ https://spatialytics.space/project-intake
     ctx.restore();
   }
 
-  function drawPromoCard(
-    ctx: CanvasRenderingContext2D,
-    promoImg: HTMLImageElement | null,
-    elapsed: number,
-    progress: number
-  ) {
-    if (!promoImg) return;
-
-    const appear = Math.max(0, Math.min(1, (elapsed - 1200) / 1000));
-
-    const floatY = Math.sin(progress * Math.PI * 2 * 1.2) * 10;
-
-    const x = 470;
-    const y = 980 + (1 - appear) * 50 + floatY;
-
-    const w = 470;
-    const h = 340;
-
-    const rotation =
-      (-6 + Math.sin(progress * Math.PI * 2) * 2) * (Math.PI / 180);
-
-    ctx.save();
-
-    ctx.globalAlpha = appear;
-
-    ctx.translate(x + w / 2, y + h / 2);
-    ctx.rotate(rotation);
-
-    ctx.shadowColor = "rgba(0,0,0,0.45)";
-    ctx.shadowBlur = 30;
-
-    roundRect(ctx, -w / 2, -h / 2, w, h, 28);
-
-    ctx.fillStyle = "rgba(255,255,255,0.08)";
-    ctx.fill();
-
-    ctx.clip();
-
-    ctx.drawImage(promoImg, -w / 2, -h / 2, w, h);
-
-    ctx.restore();
+  function easeOutCubic(t: number) {
+    return 1 - Math.pow(1 - t, 3);
   }
-    function drawBottomBar(
+
+  function drawPromoCards(
+    ctx: CanvasRenderingContext2D,
+    promoImgs: HTMLImageElement[],
+    elapsed: number
+  ) {
+    if (!promoImgs.length) return;
+
+    const visibleCount = Math.min(promoImgs.length, 5);
+    const startX = VIDEO_WIDTH / 2;
+    const startY = 1120;
+
+    for (let i = 0; i < visibleCount; i++) {
+      const img = promoImgs[i];
+      const offsetMs = i * 550;
+      const localElapsed = elapsed - (1100 + offsetMs);
+
+      if (localElapsed < 0) continue;
+
+      const phase = (localElapsed % 3400) / 3400;
+      const t = easeOutCubic(Math.max(0, Math.min(1, phase)));
+
+      const laneOffsets = [-210, 180, -110, 250, 0];
+      const laneX = laneOffsets[i % laneOffsets.length];
+
+      const x = startX + laneX * (1 - t * 0.25);
+      const y = startY - t * 540 + Math.sin((elapsed + i * 220) / 380) * 8;
+
+      const scale = 0.42 + t * 0.95;
+      const w = 330 * scale;
+      const h = 240 * scale;
+
+      const rotationDeg = (-12 + i * 5) * (1 - t * 0.45);
+      const rotation = rotationDeg * (Math.PI / 180);
+
+      const alpha = phase < 0.12 ? phase / 0.12 : phase > 0.92 ? (1 - phase) / 0.08 : 1;
+      if (alpha <= 0) continue;
+
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.translate(x, y);
+      ctx.rotate(rotation);
+
+      ctx.shadowColor = "rgba(0,0,0,0.45)";
+      ctx.shadowBlur = 32;
+
+      roundRect(ctx, -w / 2, -h / 2, w, h, 28);
+      ctx.fillStyle = "rgba(255,255,255,0.08)";
+      ctx.fill();
+
+      ctx.beginPath();
+      roundRect(ctx, -w / 2, -h / 2, w, h, 28);
+      ctx.clip();
+
+      ctx.drawImage(img, -w / 2, -h / 2, w, h);
+
+      ctx.restore();
+    }
+  }
+
+  function drawBottomBar(
     ctx: CanvasRenderingContext2D,
     logoImg: HTMLImageElement | null,
     elapsed: number
@@ -492,445 +592,509 @@ https://spatialytics.space/project-intake
 
     drawOverlay(ctx);
     drawTextBlock(ctx, elapsed, headline, subtext, items);
-    drawPromoCard(ctx, assets.promoImg, elapsed, progress);
+    drawPromoCards(ctx, assets.promoImgs, elapsed);
     drawBottomBar(ctx, assets.logoImg, elapsed);
   }
 
   async function downloadReelWebM() {
-  const mimeType = getSupportedMimeType();
+    const mimeType = getSupportedMimeType();
 
-  if (!mimeType) {
-    alert(
-      "Video recording is not supported in this browser. Desktop Chrome or Edge works best."
-    );
-    return;
-  }
-
-  try {
-    setIsRecording(true);
-
-    const [backgroundImg, promoImg, logoImg] = await Promise.all([
-      loadImage(background),
-      loadImage(promoImage),
-      loadImage(logo),
-    ]);
-
-    const assets: LoadedAssets = { backgroundImg, promoImg, logoImg };
-
-    const canvas = document.createElement("canvas");
-    canvas.width = VIDEO_WIDTH;
-    canvas.height = VIDEO_HEIGHT;
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) {
-      throw new Error("Canvas context could not be created.");
+    if (!mimeType) {
+      alert(
+        "Video recording is not supported in this browser. Desktop Chrome or Edge works best."
+      );
+      return;
     }
 
-    const stream = canvas.captureStream(VIDEO_FPS);
-    const recorder = new MediaRecorder(stream, {
-      mimeType,
-      videoBitsPerSecond: 8_000_000,
-    });
+    try {
+      setIsRecording(true);
 
-    const chunks: Blob[] = [];
-    recorder.ondataavailable = (event) => {
-      if (event.data.size > 0) chunks.push(event.data);
-    };
+      const [backgroundImg, logoImg, loadedPromoImgs] = await Promise.all([
+        loadImage(background),
+        loadImage(logo),
+        loadImages(promoImages),
+      ]);
 
-    const stopped = new Promise<Blob>((resolve) => {
-      recorder.onstop = () => {
-        resolve(new Blob(chunks, { type: mimeType }));
+      const assets: LoadedAssets = {
+        backgroundImg,
+        promoImgs: loadedPromoImgs,
+        logoImg,
       };
-    });
 
-    const stars = buildStars(spaceMode ? 180 : 0);
+      const canvas = document.createElement("canvas");
+      canvas.width = VIDEO_WIDTH;
+      canvas.height = VIDEO_HEIGHT;
 
-    recorder.start(250);
-
-    const start = performance.now();
-
-    await new Promise<void>((resolve) => {
-      function step(now: number) {
-        const elapsed = now - start;
-        drawFrame(ctx, assets, stars, elapsed, VIDEO_DURATION_MS);
-
-        if (elapsed < VIDEO_DURATION_MS) {
-          requestAnimationFrame(step);
-        } else {
-          drawFrame(ctx, assets, stars, VIDEO_DURATION_MS, VIDEO_DURATION_MS);
-          recorder.stop();
-          resolve();
-        }
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        throw new Error("Canvas context could not be created.");
       }
 
-      requestAnimationFrame(step);
-    });
+      const stream = canvas.captureStream(VIDEO_FPS);
+      const recorder = new MediaRecorder(stream, {
+        mimeType,
+        videoBitsPerSecond: 8_000_000,
+      });
 
-    const blob = await stopped;
-    const url = URL.createObjectURL(blob);
+      const chunks: Blob[] = [];
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) chunks.push(event.data);
+      };
 
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "spatialytics-reel.webm";
-    a.click();
+      const stopped = new Promise<Blob>((resolve) => {
+        recorder.onstop = () => {
+          resolve(new Blob(chunks, { type: mimeType }));
+        };
+      });
 
-    URL.revokeObjectURL(url);
-  } catch (error) {
-    console.error("WebM render failed:", error);
-    alert("Could not create the reel video.");
-  } finally {
-    setIsRecording(false);
-  }
-}
+      const stars = buildStars(spaceMode ? 180 : 0);
 
-async function downloadGIF() {
-  try {
-    setIsRecording(true);
+      recorder.start(250);
 
-    const [backgroundImg, promoImg, logoImg] = await Promise.all([
-      loadImage(background),
-      loadImage(promoImage),
-      loadImage(logo),
-    ]);
+      const start = performance.now();
 
-    const assets: LoadedAssets = { backgroundImg, promoImg, logoImg };
+      await new Promise<void>((resolve) => {
+        function step(now: number) {
+          const elapsed = now - start;
+          drawFrame(ctx, assets, stars, elapsed, VIDEO_DURATION_MS);
 
-    const gifWidth = 540;
-    const gifHeight = 960;
-    const frameCount = 14;
-
-    const renderCanvas = document.createElement("canvas");
-    renderCanvas.width = gifWidth;
-    renderCanvas.height = gifHeight;
-
-    const ctx = renderCanvas.getContext("2d");
-    if (!ctx) {
-      throw new Error("Canvas context could not be created.");
-    }
-
-    const stars = buildStars(spaceMode ? 180 : 0);
-    const frames: string[] = [];
-
-    const scaleX = gifWidth / VIDEO_WIDTH;
-    const scaleY = gifHeight / VIDEO_HEIGHT;
-
-    for (let i = 0; i < frameCount; i++) {
-      const elapsed =
-        (VIDEO_DURATION_MS / Math.max(frameCount - 1, 1)) * i;
-
-      ctx.clearRect(0, 0, gifWidth, gifHeight);
-
-      ctx.save();
-      ctx.setTransform(scaleX, 0, 0, scaleY, 0, 0);
-      drawFrame(ctx, assets, stars, elapsed, VIDEO_DURATION_MS);
-      ctx.restore();
-
-      frames.push(renderCanvas.toDataURL("image/png"));
-    }
-
-    await new Promise<void>((resolve, reject) => {
-      gifshot.createGIF(
-        {
-          images: frames,
-          gifWidth,
-          gifHeight,
-          interval: VIDEO_DURATION_MS / frameCount / 1000,
-        },
-        (obj: { error?: boolean; image?: string }) => {
-          if (obj.error || !obj.image) {
-            reject(new Error("Could not create GIF."));
-            return;
+          if (elapsed < VIDEO_DURATION_MS) {
+            requestAnimationFrame(step);
+          } else {
+            drawFrame(ctx, assets, stars, VIDEO_DURATION_MS, VIDEO_DURATION_MS);
+            recorder.stop();
+            resolve();
           }
-
-          const a = document.createElement("a");
-          a.href = obj.image;
-          a.download = "spatialytics-reel.gif";
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
-
-          resolve();
         }
-      );
-    });
-  } catch (error) {
-    console.error("GIF render failed:", error);
-    alert("Could not create the GIF.");
-  } finally {
-    setIsRecording(false);
+
+        requestAnimationFrame(step);
+      });
+
+      const blob = await stopped;
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "spatialytics-reel.webm";
+      a.click();
+
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("WebM render failed:", error);
+      alert("Could not create the reel video.");
+    } finally {
+      setIsRecording(false);
+    }
   }
-}
 
-return (
-  <div className="grid gap-8 md:grid-cols-2">
-    <div className="space-y-6">
-      <div>
-        <label className="font-semibold text-white">Template</label>
-        <select
-          className="mt-2 w-full rounded-2xl border border-white/10 bg-white/5 p-3 text-white outline-none"
-          value={template}
-          onChange={(e) => applyTemplate(e.target.value as Template)}
-        >
-          <option value="website" className="text-black">
-            Website Promo
-          </option>
-          <option value="gis" className="text-black">
-            GIS Project
-          </option>
-          <option value="dashboard" className="text-black">
-            Data Dashboard
-          </option>
-        </select>
-      </div>
+  async function downloadGIF() {
+    try {
+      setIsRecording(true);
 
-      <div className="flex items-center gap-3 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-3 text-white">
-        <input
-          id="space-mode"
-          type="checkbox"
-          checked={spaceMode}
-          onChange={(e) => setSpaceMode(e.target.checked)}
-          className="h-4 w-4"
-        />
-        <label htmlFor="space-mode" className="font-medium">
-          Space fly-through mode
-        </label>
-      </div>
+      const [backgroundImg, logoImg, loadedPromoImgs] = await Promise.all([
+        loadImage(background),
+        loadImage(logo),
+        loadImages(promoImages),
+      ]);
 
-      <div>
-        <label className="font-semibold text-white">Headline</label>
-        <input
-          className="mt-2 w-full rounded-2xl border border-white/10 bg-white/5 p-3 text-white outline-none"
-          value={headline}
-          onChange={(e) => setHeadline(e.target.value)}
-        />
-      </div>
+      const assets: LoadedAssets = {
+        backgroundImg,
+        promoImgs: loadedPromoImgs,
+        logoImg,
+      };
 
-      <div>
-        <label className="font-semibold text-white">Subtext</label>
-        <input
-          className="mt-2 w-full rounded-2xl border border-white/10 bg-white/5 p-3 text-white outline-none"
-          value={subtext}
-          onChange={(e) => setSubtext(e.target.value)}
-        />
-      </div>
+      const gifWidth = 540;
+      const gifHeight = 960;
+      const frameCount = 14;
 
-      <div>
-        <label className="font-semibold text-white">Bullet Items</label>
-        <div className="mt-2 space-y-2">
-          {items.map((item, i) => (
-            <input
-              key={i}
-              className="w-full rounded-2xl border border-white/10 bg-white/5 p-3 text-white outline-none"
-              value={item}
-              onChange={(e) => {
-                const next = [...items];
-                next[i] = e.target.value;
-                setItems(next);
-              }}
-            />
-          ))}
-        </div>
-      </div>
+      const renderCanvas = document.createElement("canvas");
+      renderCanvas.width = gifWidth;
+      renderCanvas.height = gifHeight;
 
-      <div>
-        <label className="font-semibold text-white">Upload Logo</label>
-        <input
-          type="file"
-          accept="image/*"
-          className="mt-2 block w-full rounded-2xl border border-white/10 bg-white/5 p-3 text-white"
-          onChange={(e) => handleImageUpload(e, setLogo)}
-        />
-      </div>
+      const ctx = renderCanvas.getContext("2d");
+      if (!ctx) {
+        throw new Error("Canvas context could not be created.");
+      }
 
-      <div>
-        <label className="font-semibold text-white">Upload Background</label>
-        <input
-          type="file"
-          accept="image/*"
-          className="mt-2 block w-full rounded-2xl border border-white/10 bg-white/5 p-3 text-white"
-          onChange={(e) => handleImageUpload(e, setBackground)}
-        />
-      </div>
+      const stars = buildStars(spaceMode ? 180 : 0);
+      const frames: string[] = [];
 
-      <div>
-        <label className="font-semibold text-white">Upload Promo Image</label>
-        <input
-          type="file"
-          accept="image/*"
-          className="mt-2 block w-full rounded-2xl border border-white/10 bg-white/5 p-3 text-white"
-          onChange={(e) => handleImageUpload(e, setPromoImage)}
-        />
-      </div>
+      const scaleX = gifWidth / VIDEO_WIDTH;
+      const scaleY = gifHeight / VIDEO_HEIGHT;
 
-      <div className="flex flex-wrap gap-3">
-        <button
-          className="rounded-2xl bg-gradient-to-r from-cyan-400 to-indigo-500 px-5 py-3 font-semibold text-slate-950"
-          onClick={generateCaption}
-          type="button"
-        >
-          Generate Caption
-        </button>
+      for (let i = 0; i < frameCount; i++) {
+        const elapsed =
+          (VIDEO_DURATION_MS / Math.max(frameCount - 1, 1)) * i;
 
-        <button
-          className="rounded-2xl bg-white px-5 py-3 font-semibold text-slate-950"
-          onClick={copyCaption}
-          type="button"
-        >
-          Copy Caption
-        </button>
+        ctx.clearRect(0, 0, gifWidth, gifHeight);
 
-        <button
-          className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-5 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-          onClick={downloadPreview}
-          disabled={isDownloading}
-          type="button"
-        >
-          {isDownloading ? "Downloading..." : "Download Preview PNG"}
-        </button>
+        ctx.save();
+        ctx.setTransform(scaleX, 0, 0, scaleY, 0, 0);
+        drawFrame(ctx, assets, stars, elapsed, VIDEO_DURATION_MS);
+        ctx.restore();
 
-        <button
-          className="rounded-2xl border border-indigo-300/20 bg-indigo-400/20 px-5 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-          onClick={() => {
-            if (typeof MediaRecorder !== "undefined") {
-              downloadReelWebM();
-            } else {
-              downloadGIF();
+        frames.push(renderCanvas.toDataURL("image/png"));
+      }
+
+      await new Promise<void>((resolve, reject) => {
+        gifshot.createGIF(
+          {
+            images: frames,
+            gifWidth,
+            gifHeight,
+            interval: VIDEO_DURATION_MS / frameCount / 1000,
+          },
+          (obj: { error?: boolean; image?: string }) => {
+            if (obj.error || !obj.image) {
+              reject(new Error("Could not create GIF."));
+              return;
             }
-          }}
-          disabled={isRecording}
-          type="button"
-        >
-          {isRecording ? "Recording Reel..." : "Download Reel WebM"}
-        </button>
 
-        <button
-          className="rounded-2xl border border-purple-300/20 bg-purple-400/20 px-5 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-          onClick={downloadGIF}
-          disabled={isRecording}
-          type="button"
-        >
-          {isRecording ? "Creating GIF..." : "Download GIF"}
-        </button>
-      </div>
+            const a = document.createElement("a");
+            a.href = obj.image;
+            a.download = "spatialytics-reel.gif";
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
 
-      {copyStatus ? (
-        <div className="text-sm text-cyan-200">{copyStatus}</div>
-      ) : null}
+            resolve();
+          }
+        );
+      });
+    } catch (error) {
+      console.error("GIF render failed:", error);
+      alert("Could not create the GIF.");
+    } finally {
+      setIsRecording(false);
+    }
+  }
 
-      {caption && (
-        <textarea
-          className="h-48 w-full rounded-2xl border border-white/10 bg-white/5 p-4 text-white outline-none"
-          value={caption}
-          readOnly
-        />
-      )}
-    </div>
+  return (
+    <div className="grid gap-8 md:grid-cols-2">
+      <div className="space-y-6">
+        <div>
+          <label className="font-semibold text-white">Template</label>
+          <select
+            className="mt-2 w-full rounded-2xl border border-white/10 bg-white/5 p-3 text-white outline-none"
+            value={template}
+            onChange={(e) => applyTemplate(e.target.value as Template)}
+          >
+            <option value="website" className="text-black">
+              Website Promo
+            </option>
+            <option value="gis" className="text-black">
+              GIS Project
+            </option>
+            <option value="dashboard" className="text-black">
+              Data Dashboard
+            </option>
+          </select>
+        </div>
 
-    <div className="rounded-3xl border border-cyan-300/15 bg-gradient-to-br from-cyan-400/10 to-indigo-500/10 p-6">
-      <div className="mb-4 inline-flex rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-cyan-100">
-        Space Preview
-      </div>
+        <div className="flex items-center gap-3 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-3 text-white">
+          <input
+            id="space-mode"
+            type="checkbox"
+            checked={spaceMode}
+            onChange={(e) => setSpaceMode(e.target.checked)}
+            className="h-4 w-4"
+          />
+          <label htmlFor="space-mode" className="font-medium">
+            Space fly-through mode
+          </label>
+        </div>
 
-      <div className="overflow-hidden rounded-[32px] border border-white/10 bg-[#091321] shadow-2xl">
-        <div
-          ref={previewRef}
-          className={[
-            "relative aspect-[9/16] w-full p-6",
-            spaceMode ? "space-preview" : "",
-          ].join(" ")}
-          style={{
-            backgroundImage: background
-              ? `linear-gradient(180deg, rgba(7,17,31,0.45) 0%, rgba(9,17,31,0.72) 100%), url(${background})`
-              : undefined,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-            backgroundColor: "#07111f",
-          }}
-        >
-          {spaceMode && (
-            <>
-              <div className="space-stars layer-1" />
-              <div className="space-stars layer-2" />
-              <div className="space-stars layer-3" />
-              <div className="space-glow" />
-            </>
-          )}
+        <div>
+          <label className="font-semibold text-white">Headline</label>
+          <input
+            className="mt-2 w-full rounded-2xl border border-white/10 bg-white/5 p-3 text-white outline-none"
+            value={headline}
+            onChange={(e) => setHeadline(e.target.value)}
+          />
+        </div>
 
-          <div className="relative z-10 flex h-full flex-col justify-between">
-            <div>
-              <h1 className="max-w-md text-3xl font-extrabold leading-tight text-white sm:text-4xl">
-                {headline}
-              </h1>
+        <div>
+          <label className="font-semibold text-white">Subtext</label>
+          <input
+            className="mt-2 w-full rounded-2xl border border-white/10 bg-white/5 p-3 text-white outline-none"
+            value={subtext}
+            onChange={(e) => setSubtext(e.target.value)}
+          />
+        </div>
 
-              <div className="mt-5 inline-block rounded-2xl bg-[#f5d547] px-4 py-3 text-lg font-extrabold text-slate-900 shadow-lg">
-                {subtext}
-              </div>
+        <div>
+          <label className="font-semibold text-white">Bullet Items</label>
+          <div className="mt-2 space-y-2">
+            {items.map((item, i) => (
+              <input
+                key={i}
+                className="w-full rounded-2xl border border-white/10 bg-white/5 p-3 text-white outline-none"
+                value={item}
+                onChange={(e) => {
+                  const next = [...items];
+                  next[i] = e.target.value;
+                  setItems(next);
+                }}
+              />
+            ))}
+          </div>
+        </div>
 
-              <ul className="mt-6 space-y-3 text-lg font-semibold text-white/95">
-                {items.map((item, i) => (
-                  <li key={i}>✓ {item}</li>
-                ))}
-              </ul>
-            </div>
+        <div>
+          <label className="font-semibold text-white">Upload Logo</label>
+          <input
+            type="file"
+            accept="image/*"
+            className="mt-2 block w-full rounded-2xl border border-white/10 bg-white/5 p-3 text-white"
+            onChange={(e) => handleImageUpload(e, setLogo)}
+          />
+        </div>
 
-            {promoImage && (
-              <div
-                className={
-                  spaceMode
-                    ? "floating-card hologram-card mx-auto mt-6 w-[72%]"
-                    : "mx-auto mt-6 w-[72%]"
-                }
-              >
-                <div className="overflow-hidden rounded-[24px] border border-white/10 bg-white/5 shadow-2xl">
-                  <img
-                    src={promoImage}
-                    alt="Promo preview"
-                    className="block h-auto w-full object-cover"
-                  />
+        <div>
+          <label className="font-semibold text-white">Upload Background</label>
+          <input
+            type="file"
+            accept="image/*"
+            className="mt-2 block w-full rounded-2xl border border-white/10 bg-white/5 p-3 text-white"
+            onChange={(e) => handleImageUpload(e, setBackground)}
+          />
+        </div>
+
+        <div>
+          <label className="font-semibold text-white">
+            Upload Project Images
+          </label>
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            className="mt-2 block w-full rounded-2xl border border-white/10 bg-white/5 p-3 text-white"
+            onChange={handleMultiplePromoUpload}
+          />
+
+          {promoImages.length > 0 ? (
+            <div className="mt-3 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-white/70">
+                  {promoImages.length} project image
+                  {promoImages.length === 1 ? "" : "s"} loaded
                 </div>
+                <button
+                  type="button"
+                  onClick={clearPromoImages}
+                  className="rounded-xl border border-white/10 bg-white/5 px-3 py-1 text-sm text-white hover:bg-white/10"
+                >
+                  Clear all
+                </button>
               </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                {promoImages.map((src, index) => (
+                  <div
+                    key={src}
+                    className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/5"
+                  >
+                    <img
+                      src={src}
+                      alt={`Project ${index + 1}`}
+                      className="h-24 w-full object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removePromoImage(index)}
+                      className="absolute right-2 top-2 rounded-full bg-black/70 px-2 py-1 text-xs font-semibold text-white"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </div>
+
+        <div className="flex flex-wrap gap-3">
+          <button
+            className="rounded-2xl bg-gradient-to-r from-cyan-400 to-indigo-500 px-5 py-3 font-semibold text-slate-950"
+            onClick={generateCaption}
+            type="button"
+          >
+            Generate Caption
+          </button>
+
+          <button
+            className="rounded-2xl bg-white px-5 py-3 font-semibold text-slate-950"
+            onClick={copyCaption}
+            type="button"
+          >
+            Copy Caption
+          </button>
+
+          <button
+            className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-5 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+            onClick={downloadPreview}
+            disabled={isDownloading}
+            type="button"
+          >
+            {isDownloading ? "Downloading..." : "Download Preview PNG"}
+          </button>
+
+          <button
+            className="rounded-2xl border border-indigo-300/20 bg-indigo-400/20 px-5 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+            onClick={() => {
+              if (typeof MediaRecorder !== "undefined") {
+                downloadReelWebM();
+              } else {
+                downloadGIF();
+              }
+            }}
+            disabled={isRecording}
+            type="button"
+          >
+            {isRecording ? "Recording Reel..." : "Download Reel WebM"}
+          </button>
+
+          <button
+            className="rounded-2xl border border-purple-300/20 bg-purple-400/20 px-5 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+            onClick={downloadGIF}
+            disabled={isRecording}
+            type="button"
+          >
+            {isRecording ? "Creating GIF..." : "Download GIF"}
+          </button>
+        </div>
+
+        {copyStatus ? (
+          <div className="text-sm text-cyan-200">{copyStatus}</div>
+        ) : null}
+
+        {caption && (
+          <textarea
+            className="h-48 w-full rounded-2xl border border-white/10 bg-white/5 p-4 text-white outline-none"
+            value={caption}
+            readOnly
+          />
+        )}
+      </div>
+
+      <div className="rounded-3xl border border-cyan-300/15 bg-gradient-to-br from-cyan-400/10 to-indigo-500/10 p-6">
+        <div className="mb-4 inline-flex rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-cyan-100">
+          Space Preview
+        </div>
+
+        <div className="overflow-hidden rounded-[32px] border border-white/10 bg-[#091321] shadow-2xl">
+          <div
+            ref={previewRef}
+            className={[
+              "relative aspect-[9/16] w-full p-6",
+              spaceMode ? "space-preview" : "",
+            ].join(" ")}
+            style={{
+              backgroundImage: background
+                ? `linear-gradient(180deg, rgba(7,17,31,0.45) 0%, rgba(9,17,31,0.72) 100%), url(${background})`
+                : undefined,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              backgroundColor: "#07111f",
+            }}
+          >
+            {spaceMode && (
+              <>
+                <div className="space-stars layer-1" />
+                <div className="space-stars layer-2" />
+                <div className="space-stars layer-3" />
+                <div className="space-glow" />
+              </>
             )}
 
-            <div className="pt-5">
-              <button
-                type="button"
-                className="w-full rounded-2xl bg-white px-5 py-4 text-center text-xl font-extrabold text-slate-900 shadow-xl"
-              >
-                Start your project
-              </button>
+            <div className="relative z-10 flex h-full flex-col justify-between">
+              <div>
+                <h1 className="max-w-md text-3xl font-extrabold leading-tight text-white sm:text-4xl">
+                  {headline}
+                </h1>
 
-              <div className="mt-5 flex items-center gap-4">
-                {logo ? (
-                  <img
-                    src={logo}
-                    alt="Logo"
-                    className="h-14 w-14 rounded-2xl object-cover"
-                  />
-                ) : (
-                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/10 text-xs text-white/60">
-                    Logo
-                  </div>
-                )}
+                <div className="mt-5 inline-block max-w-full rounded-2xl bg-[#f5d547] px-4 py-3 text-lg font-extrabold leading-tight text-slate-900 shadow-lg">
+                  <div className="max-w-[34rem] break-words">{subtext}</div>
+                </div>
 
-                <div>
-                  <div className="text-2xl font-bold tracking-wide text-white">
-                    SPATIALYTICS
-                  </div>
-                  <div className="text-sm text-white/70">
-                    spatialytics.space
+                <ul className="mt-6 space-y-3 text-lg font-semibold text-white/95">
+                  {items.map((item, i) => (
+                    <li key={i}>✓ {item}</li>
+                  ))}
+                </ul>
+              </div>
+
+              {promoImages.length > 0 && (
+                <div className="relative mx-auto mt-6 h-[340px] w-[82%]">
+                  {promoImages.slice(0, 4).map((src, i) => {
+                    const positions = [
+                      "left-[4%] top-[24%] rotate-[-10deg]",
+                      "right-[6%] top-[8%] rotate-[8deg]",
+                      "left-[24%] bottom-[8%] rotate-[-4deg]",
+                      "right-[18%] bottom-[2%] rotate-[10deg]",
+                    ];
+
+                    return (
+                      <div
+                        key={`${src}-${i}`}
+                        className={[
+                          "absolute overflow-hidden rounded-[24px] border border-white/10 bg-white/5 shadow-2xl",
+                          "w-[56%]",
+                          spaceMode ? "floating-card hologram-card" : "",
+                          positions[i] || "left-[18%] top-[18%]",
+                        ].join(" ")}
+                      >
+                        <img
+                          src={src}
+                          alt={`Project preview ${i + 1}`}
+                          className="block h-auto w-full object-cover"
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              <div className="pt-5">
+                <button
+                  type="button"
+                  className="w-full rounded-2xl bg-white px-5 py-4 text-center text-xl font-extrabold text-slate-900 shadow-xl"
+                >
+                  Start your project
+                </button>
+
+                <div className="mt-5 flex items-center gap-4">
+                  {logo ? (
+                    <img
+                      src={logo}
+                      alt="Logo"
+                      className="h-14 w-14 rounded-2xl object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/10 text-xs text-white/60">
+                      Logo
+                    </div>
+                  )}
+
+                  <div>
+                    <div className="text-2xl font-bold tracking-wide text-white">
+                      SPATIALYTICS
+                    </div>
+                    <div className="text-sm text-white/70">
+                      spatialytics.space
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-6 text-white/70">
-        Space fly-through mode adds animated stars and floating motion so the
-        preview feels more like a reel concept.
+        <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-6 text-white/70">
+          Space fly-through mode adds animated stars, multiple project cards,
+          and floating motion so the preview feels more like a reel concept.
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
 }
