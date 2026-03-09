@@ -490,8 +490,8 @@ https://spatialytics.space/project-intake
     const floatY = Math.sin((elapsed + i * 260) / 500) * 8;
     const scale = 0.84 + Math.sin((elapsed + i * 200) / 900) * 0.02;
 
-    const w = 360 * scale;
-    const h = 260 * scale;
+    const w = 410 * scale;
+    const h = 290 * scale;
 
     ctx.save();
     ctx.globalAlpha = appear;
